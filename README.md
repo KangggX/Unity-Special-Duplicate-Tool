@@ -1,2 +1,2 @@
 # Unity-Special-Duplicate-Tool
-Special Duplicate Tool is a tool developed in Unity that mimics Maya's Duplicate Special Tool
+Tool Development Blog: https://lowkangxuan.blogspot.com/2021/12/developing-special-duplicate-tool-in.html
