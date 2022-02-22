@@ -6,119 +6,150 @@ using UnityEditor;
 public class SpecialDuplicate : EditorWindow
 {
     public GameObject parent;
-    public GameObject objectToDupe;
+    private Material _previewMaterial;
 
-    private Vector3 _position;
-    private Vector3 _rotation;
-    private Vector3 _scale = new Vector3(1, 1, 1);
-    private int _instances;
+    // Default values for Transform
+    public Vector3 inputPosition;
+    public Vector3 inputRotation;
+    public Vector3 inputScale = new Vector3(1, 1, 1);
+    public int inputInstances;
+
+    // Serializing Stuff
+    SerializedObject _so;
+    SerializedProperty _propParent;
+    SerializedProperty _propPosition;
+    SerializedProperty _propRotation;
+    SerializedProperty _propScale;
+    SerializedProperty _propInstances;
 
     [MenuItem("Tools/Special Duplicate %#D")]
-    static void Init()
+    private static void Init()
     {
-        SpecialDuplicate window = (SpecialDuplicate)GetWindow(typeof(SpecialDuplicate));
-        window.Show();
+        GetWindow<SpecialDuplicate>();
     }
 
     private void OnEnable()
     {
         Selection.selectionChanged += Repaint;
+        SceneView.duringSceneGui += DuringSceneGUI;
+
+        _previewMaterial = new Material(Shader.Find("Shader Graphs/PreviewMatShader"));
+
+        _so = new SerializedObject(this);
+        _propParent = _so.FindProperty("parent");
+        _propPosition = _so.FindProperty("inputPosition");
+        _propRotation = _so.FindProperty("inputRotation");
+        _propScale = _so.FindProperty("inputScale");
+        _propInstances = _so.FindProperty("inputInstances");
     }
 
     private void OnDisable()
     {
         Selection.selectionChanged -= Repaint;
+        SceneView.duringSceneGui -= DuringSceneGUI;
+
+        DestroyImmediate(_previewMaterial);
     }
 
+    // Scene View GUI
+    private void DuringSceneGUI(SceneView sceneView)
+    {
+        if (inputInstances > 0)
+        {
+            foreach (GameObject go in Selection.gameObjects)
+            {
+                //Debug.Log(go.GetComponent<MeshFilter>().sharedMesh.name + ": " + go.transform.position);
+                Mesh mesh = go.GetComponent<MeshFilter>().sharedMesh;
+
+                for (int i = 1; i <= inputInstances; i++)
+                {
+                    Vector3 finalPosition = FinalPosition(go.transform.position.x, go.transform.position.y, go.transform.position.z, i);
+
+                    float rotationX = (go.transform.localRotation.eulerAngles.x + inputRotation.x) * i;
+                    float rotationY = (go.transform.localRotation.eulerAngles.y + inputRotation.y) * i;
+                    float rotationZ = (go.transform.localRotation.eulerAngles.z + inputRotation.z) * i;
+                    Vector3 finalRotation = new Vector3(rotationX, rotationY, rotationZ);
+
+                    float scaleX = inputScale.x;
+                    float scaleY = inputScale.y;
+                    float scaleZ = inputScale.z;
+                    Vector3 finalScale = new Vector3(scaleX, scaleY, scaleZ);
+
+                    Matrix4x4 matrix = Matrix4x4.TRS(finalPosition, Quaternion.Euler(finalRotation), finalScale);
+
+                    _previewMaterial.SetPass(0);
+                    Graphics.DrawMeshNow(mesh, matrix);
+                }
+            }
+        }
+    }
+
+    // Editor Window GUI
     private void OnGUI()
     {
-        parent = (GameObject) EditorGUILayout.ObjectField("Parent", parent, typeof(GameObject), true);
-        //objectToDupe = (GameObject)EditorGUILayout.ObjectField("Object to Dupe", objectToDupe, typeof(GameObject), true);
+        _so.Update();
+
+        EditorGUILayout.PropertyField(_propParent, new GUIContent("Parent"));
         
         EditorGUILayout.Space();
 
-        _position = EditorGUILayout.Vector3Field("Position", _position);
-        _rotation = EditorGUILayout.Vector3Field("Rotation (Degrees)", _rotation);
-        _scale = EditorGUILayout.Vector3Field("Scale", _scale);
-        _instances = EditorGUILayout.IntField("Number of Instance(s)", _instances);
+        EditorGUILayout.PropertyField(_propPosition, new GUIContent("Position"));
+        EditorGUILayout.PropertyField(_propRotation, new GUIContent("Rotation"));
+        EditorGUILayout.PropertyField(_propScale, new GUIContent("Scale"));
+        EditorGUILayout.PropertyField(_propInstances, new GUIContent("No. of Instances"));
 
         EditorGUILayout.Space();
+        
+        if (_so.ApplyModifiedProperties())
+        {
+            SceneView.RepaintAll();
+        }
 
-        using (new EditorGUI.DisabledScope(!((Selection.gameObjects.Length == 1) && (parent != null) && (_instances > 0))))
+        using (new EditorGUI.DisabledScope(!((Selection.gameObjects.Length == 1) && (inputInstances > 0))))
         {
             if (GUILayout.Button("Special Duplicate"))
             {
                 DuplicateObject();
             }
         }
-
-        using (new EditorGUI.DisabledScope(!(Selection.gameObjects.Length > 0)))
-        {
-            if (GUILayout.Button("Snap Objects"))
-            {
-                SnapObjects();
-            }
-        }
     }
 
     private void DuplicateObject()
     {
-        GameObject selectedObject = Selection.gameObjects[0];
-        Debug.Log(selectedObject);
-        Debug.Log(PrefabUtility.IsPartOfPrefabInstance(selectedObject));
-
-        for (int i = 0; i < _instances; i++)
+        for (int i = 0; i < inputInstances; i++)
         {
             Unsupported.DuplicateGameObjectsUsingPasteboard();
 
-            int index = i + 1;
+            Transform currSelection = Selection.activeGameObject.transform;
 
-            //float positionX = index * _position.x;
-            //float positionY = index * _position.y;
-            //float positionZ = index * _position.z;
+            // Assigning rotation to instantiated object
+            float rotationX = inputRotation.x + currSelection.localRotation.eulerAngles.x;
+            float rotationY = inputRotation.y + currSelection.localRotation.eulerAngles.y;
+            float rotationZ = inputRotation.z + currSelection.localRotation.eulerAngles.z;
 
-            //float rotationX = (index * _rotation.x) + Selection.activeGameObject.transform.localRotation.eulerAngles.x;
-            //float rotationY = (index * _rotation.y) + Selection.activeGameObject.transform.localRotation.eulerAngles.y;
-            //float rotationZ = (index * _rotation.z) + Selection.activeGameObject.transform.localRotation.eulerAngles.z;
+            // Assigning scale to instantiated object
+            float scaleX = inputScale.x;
+            float scaleY = inputScale.y;
+            float scaleZ = inputScale.z;
 
-            float positionX = _position.x + Selection.activeGameObject.transform.localPosition.x;
-            float positionY = _position.y + Selection.activeGameObject.transform.localPosition.y;
-            float positionZ = _position.z + Selection.activeGameObject.transform.localPosition.z;
-
-            float rotationX = _rotation.x + Selection.activeGameObject.transform.localRotation.eulerAngles.x;
-            float rotationY = _rotation.y + Selection.activeGameObject.transform.localRotation.eulerAngles.y;
-            float rotationZ = _rotation.z + Selection.activeGameObject.transform.localRotation.eulerAngles.z;
-
-            float scaleX = _scale.x;
-            float scaleY = _scale.y;
-            float scaleZ = _scale.z;
-
-            //GameObject instantiatedObject = Instantiate(selectedObject, parent.transform);
-            //GameObject object2 = PrefabUtility.GetCorrespondingObjectFromSource(selectedObject);
-            //string prefabPath = AssetDatabase.GetAssetPath(object2);
-            //Debug.Log(prefabPath);
-
-            //GameObject instantiatedObject = (GameObject)PrefabUtility.InstantiatePrefab(objectToDupe, parent.transform);
-
-            //Debug.Log(instantiatedObject);
-            //instantiatedObject.transform.localPosition += new Vector3(positionX, positionY, positionZ);
-            //instantiatedObject.transform.localRotation = Quaternion.Euler(new Vector3(rotationX, rotationY, rotationZ));
-            //instantiatedObject.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
-
-            //Undo.RegisterCreatedObjectUndo(instantiatedObject, "Undo Created Object");
-
-            Selection.activeGameObject.transform.localPosition = new Vector3(positionX, positionY, positionZ);
-            Selection.activeGameObject.transform.localRotation = Quaternion.Euler(new Vector3(rotationX, rotationY, rotationZ));
-            Selection.activeGameObject.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
+            currSelection.localPosition = FinalPosition(currSelection.localPosition.x, currSelection.localPosition.y, currSelection.localPosition.z);
+            currSelection.localRotation = FinalRotation(currSelection.localRotation.eulerAngles.x, currSelection.localRotation.eulerAngles.y, currSelection.localRotation.eulerAngles.z);
+            currSelection.localScale = new Vector3(scaleX, scaleY, scaleZ);
         }
     }
 
-    private void SnapObjects()
+    private Vector3 FinalPosition(float xPos, float yPos, float zPos)
     {
-        foreach (GameObject go in Selection.gameObjects)
-        {
-            Undo.RecordObject(go.transform, "Object Snap");
-            go.transform.position = go.transform.position.Round();
-        }
+        return new Vector3(inputPosition.x + xPos, inputPosition.y + yPos, inputPosition.z + zPos);
+    }
+
+    private Vector3 FinalPosition(float xPos, float yPos, float zPos, int index)
+    {
+        return new Vector3((inputPosition.x * index) + xPos, (inputPosition.y * index) + yPos, (inputPosition.z * index) + zPos);
+    }
+
+    private Quaternion FinalRotation(float xRot, float yRot, float zRot)
+    {
+        return Quaternion.Euler(new Vector3(inputRotation.x + xRot, inputRotation.y + yRot, inputRotation.z + zRot));
     }
 }
