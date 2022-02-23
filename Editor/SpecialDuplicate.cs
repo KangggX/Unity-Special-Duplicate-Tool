@@ -58,27 +58,31 @@ public class SpecialDuplicate : EditorWindow
         {
             foreach (GameObject go in Selection.gameObjects)
             {
-                //Debug.Log(go.GetComponent<MeshFilter>().sharedMesh.name + ": " + go.transform.position);
-                Mesh mesh = go.GetComponent<MeshFilter>().sharedMesh;
+                MeshFilter meshFilter = go.GetComponent<MeshFilter>();
 
-                for (int i = 1; i <= inputInstances; i++)
+                if (meshFilter != null)
                 {
-                    Vector3 finalPosition = FinalPosition(go.transform.position.x, go.transform.position.y, go.transform.position.z, i);
+                    Mesh mesh = meshFilter.sharedMesh;
 
-                    float rotationX = (go.transform.localRotation.eulerAngles.x + inputRotation.x) * i;
-                    float rotationY = (go.transform.localRotation.eulerAngles.y + inputRotation.y) * i;
-                    float rotationZ = (go.transform.localRotation.eulerAngles.z + inputRotation.z) * i;
-                    Vector3 finalRotation = new Vector3(rotationX, rotationY, rotationZ);
+                    for (int i = 1; i <= inputInstances; i++)
+                    {
+                        Vector3 finalPosition = FinalPosition(go.transform.position.x, go.transform.position.y, go.transform.position.z, i);
 
-                    float scaleX = inputScale.x;
-                    float scaleY = inputScale.y;
-                    float scaleZ = inputScale.z;
-                    Vector3 finalScale = new Vector3(scaleX, scaleY, scaleZ);
+                        float rotationX = (go.transform.localRotation.eulerAngles.x + inputRotation.x) * i;
+                        float rotationY = (go.transform.localRotation.eulerAngles.y + inputRotation.y) * i;
+                        float rotationZ = (go.transform.localRotation.eulerAngles.z + inputRotation.z) * i;
+                        Vector3 finalRotation = new Vector3(rotationX, rotationY, rotationZ);
 
-                    Matrix4x4 matrix = Matrix4x4.TRS(finalPosition, Quaternion.Euler(finalRotation), finalScale);
+                        float scaleX = inputScale.x;
+                        float scaleY = inputScale.y;
+                        float scaleZ = inputScale.z;
+                        Vector3 finalScale = new Vector3(scaleX, scaleY, scaleZ);
 
-                    _previewMaterial.SetPass(0);
-                    Graphics.DrawMeshNow(mesh, matrix);
+                        Matrix4x4 matrix = Matrix4x4.TRS(finalPosition, Quaternion.Euler(finalRotation), finalScale);
+
+                        _previewMaterial.SetPass(0);
+                        Graphics.DrawMeshNow(mesh, matrix);
+                    }
                 }
             }
         }
@@ -100,6 +104,7 @@ public class SpecialDuplicate : EditorWindow
 
         EditorGUILayout.Space();
         
+        // If properties are modified, repaint SceneView
         if (_so.ApplyModifiedProperties())
         {
             SceneView.RepaintAll();
@@ -114,18 +119,15 @@ public class SpecialDuplicate : EditorWindow
         }
     }
 
+    // Function to duplicate selected objects
     private void DuplicateObject()
     {
         for (int i = 0; i < inputInstances; i++)
         {
             Unsupported.DuplicateGameObjectsUsingPasteboard();
 
+            // Current duplicated object
             Transform currSelection = Selection.activeGameObject.transform;
-
-            // Assigning rotation to instantiated object
-            float rotationX = inputRotation.x + currSelection.localRotation.eulerAngles.x;
-            float rotationY = inputRotation.y + currSelection.localRotation.eulerAngles.y;
-            float rotationZ = inputRotation.z + currSelection.localRotation.eulerAngles.z;
 
             // Assigning scale to instantiated object
             float scaleX = inputScale.x;
