@@ -1,2 +1,2 @@
-# Unity-Special-Duplicate-Tool
+# Unity Special Duplicate Tool
 .
