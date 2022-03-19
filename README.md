@@ -1,6 +1,6 @@
 [![Made with Unity](https://img.shields.io/badge/Unity-2021.1+-57b9d3.svg?logo=unity)](https://unity3d.com)
 
-# Unity Special Duplicate Tool
+# Unity Duplicate Special Tool
 A free to use tool to help improve mass duplicate workflows
 
 # Features
